@@ -2,6 +2,7 @@ import math
 from skimage import io
 import skimage
 import numpy as np
+import cv2
 import scipy
 import matplotlib.pyplot as plt
 from scipy.ndimage import gaussian_filter
@@ -18,7 +19,7 @@ def process_chunk(start_row, end_row, template_gradients, template_rows, templat
             gradients_list.append((dif, r, c))
     return gradients_list
 
-def run_gradient(test_image_path):
+def run_gradient(test_image_path, ind):
     # Load and process the template image
     template = io.imread("testdata/waldoW129noise.png")[:,:,:3]
     Im = skimage.color.rgb2gray(template)
@@ -57,10 +58,12 @@ def run_gradient(test_image_path):
     # Find the best match
     all_gradients.sort(key=lambda x: x[0])
     best_dif, bestr, bestc = all_gradients[0]
-    field_match = field[bestr:bestr+template.shape[0], bestc:bestc+template.shape[1]]
-    plt.imshow(field_match)
-    plt.savefig("result/gradient_result.jpg")
-    plt.show()
+
+    mask = np.zeros_like(field, dtype=np.uint8)
+    cv2.rectangle(mask, (bestc, bestr), (bestc + template.shape[1], bestr + template.shape[0]), (255, 255, 255), -1)
+    blurred_field = cv2.GaussianBlur(field, (21, 21), 0)
+    final_image = np.where(mask == np.array([255, 255, 255]), field, blurred_field)
+    plt.imsave(f"result/gradient/gradient_result_{ind}.jpg", final_image)
 
 def calculate_template_gradients(gxIm, gyIm, rows, cols):
     template_gradients = [0, 0, 0, 0, 0, 0, 0, 0]

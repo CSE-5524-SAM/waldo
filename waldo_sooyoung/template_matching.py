@@ -1,7 +1,6 @@
 import cv2
 import numpy as np
 import os
-import matplotlib.pyplot as plt
 from concurrent.futures import ThreadPoolExecutor
 
 def template_matching(test_image_gray, template):
@@ -44,6 +43,9 @@ def slice_waldo_images(image_dir, label_dir):
         if os.path.exists(image_path) and os.path.exists(label_path):
             # Read the image
             image = cv2.imread(image_path)
+            if image is None:
+                print(f"Failed to read image: {image_path}")
+                continue
             h, w = image.shape[:2]
 
             # Read and process the label file
@@ -65,12 +67,12 @@ def slice_waldo_images(image_dir, label_dir):
 
 def find_waldo_with_template_matching_parallel(test_image, template_images):
     """
-    Find Waldo in the test image using template matching with parallel processing.
+        Find Waldo in the test image using template matching with parallel processing.
 
-    :param test_image: The test image where we need to find Waldo.
-    :param template_images: A list of template images of Waldo.
-    :return: Image with Waldo's locations marked.
-    """
+        :param test_image: The test image where we need to find Waldo.
+        :param template_images: A list of template images of Waldo.
+        :return: Image with Waldo's locations marked.
+        """
     # Convert the test image to grayscale
     test_image_gray = cv2.cvtColor(test_image, cv2.COLOR_BGR2GRAY)
 
@@ -82,14 +84,36 @@ def find_waldo_with_template_matching_parallel(test_image, template_images):
             points.extend(future.result())
 
     # Draw rectangles for each found location
-    for pt in points:
-        cv2.rectangle(test_image, (pt[0], pt[1]), (pt[0] + pt[2], pt[1] + pt[3]), (0, 255, 0), 2)
+    # for pt in points:
+    #     cv2.rectangle(test_image, (pt[0], pt[1]), (pt[0] + pt[2], pt[1] + pt[3]), (0, 255, 0), 2)
 
-    return test_image
+    return test_image, points
 
-def run_template_matching(test_image_path, template_path):
+def run_template_matching(test_image_path, template_paths, ind):
     test_img = cv2.imread(test_image_path)
-    template_imgs = slice_waldo_images(template_path + '/images', template_path + '/labels')
-    result_img = find_waldo_with_template_matching_parallel(test_img, template_imgs)
-    cv2.imwrite('result/template_matching_result.jpg', result_img, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    template_imgs = []
+
+    for tp in template_paths:
+        template_imgs.extend(slice_waldo_images(tp + '/images', tp + '/labels'))
+
+    result_img, points = find_waldo_with_template_matching_parallel(test_img, template_imgs)
+    # Create a mask with the same size as the image, initially filled with zeros
+    mask = np.zeros_like(test_img, dtype=np.uint8)
+
+    # Draw a filled rectangle on the mask for each point
+    for pt in points:
+        cv2.rectangle(mask, (pt[0], pt[1]), (pt[0] + pt[2], pt[1] + pt[3]), (255, 255, 255), -1)
+
+    # Apply Gaussian blur to the whole image
+    blurred_test_img = cv2.GaussianBlur(test_img, (21, 21), 0)
+
+    # Blend the images
+    final_image = np.where(mask == np.array([255, 255, 255]), test_img, blurred_test_img)
+
+    for pt in points:
+        cv2.rectangle(final_image, (pt[0], pt[1]), (pt[0] + pt[2], pt[1] + pt[3]), (0, 255, 0), 2)
+
+    cv2.imwrite(f'result/template_matching/template_matching_result_{ind}.jpg', final_image, [cv2.IMWRITE_JPEG_QUALITY, 90])
+
+
 
