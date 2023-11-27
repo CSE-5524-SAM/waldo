@@ -1,0 +1,7 @@
+scikit-image
+numpy
+opencv-python
+scipy
+matplotlib
+mahotas
+ultralytics

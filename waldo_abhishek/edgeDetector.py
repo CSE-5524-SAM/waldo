@@ -1,13 +1,14 @@
-from pylab import imshow, show
+from pylab import imshow, show, imsave
 import matplotlib as plt
 import mahotas
 import mahotas.demos
 import numpy as np
 
 
-def run_edge_detector():
+def run_edge_detector(image_path, ind):
     # loading the image
-    wally = mahotas.demos.load('wally')
+    # wally = mahotas.demos.load('wally')
+    wally = mahotas.imread(image_path, as_grey=None)
 
     # getting float type value
     # float values are better to use
@@ -41,5 +42,4 @@ def run_edge_detector():
                        out = wally, casting ='unsafe')
 
     # show the new image
-    imshow(wally)
-    show()
+    imsave(f'result/edge_detection/edge_detection_result_{ind}', wally)
