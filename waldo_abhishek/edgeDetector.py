@@ -42,4 +42,4 @@ def run_edge_detector(image_path, ind):
                        out = wally, casting ='unsafe')
 
     # show the new image
-    imsave(f'result/edge_detection/edge_detection_result_{ind}', wally)
+    imsave(f'result/edge_detection/edge_detection_result_{ind}.jpg', wally)
