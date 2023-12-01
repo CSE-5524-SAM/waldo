@@ -1,17 +1,12 @@
 import os
 import cv2
 import numpy as np
+import pandas as pd
+from IPython.display import display
 import matplotlib.pyplot as plt
 import matplotlib.patches as matches
 
 def get_real_waldo(image_path, label_path):
-    """
-    Slice images based on labeled bounding boxes in normalized format and return a list of slices with a progress bar.
-
-    :param image_dir: Directory containing the images
-    :param label_dir: Directory containing the corresponding label files
-    :return: List of sliced images containing Waldo
-    """
 
     if os.path.exists(image_path) and os.path.exists(label_path):
         # Read the image
@@ -59,7 +54,9 @@ def calculate_waldo_accuracy(waldo, ind):
         print(f"No real Waldo data found for index {ind}")
         return 0
 
-def draw_final_image(waldos, i):
+def draw_final_image(result, i, ax):
+    waldos = [result[0][1], result[1][1], result[2][1], result[3][1]]
+
     image = cv2.imread(f'testdata/images/test_{i}.jpg')
     mask = np.zeros_like(image, dtype=np.uint8)
     blurred_img = cv2.GaussianBlur(image, (21, 21), 0)
@@ -104,33 +101,59 @@ def draw_final_image(waldos, i):
     image_rgb = cv2.cvtColor(final_image, cv2.COLOR_BGR2RGB)
     patches = [matches.Patch(color=np.array(color) / 255, label=label)
                for label, color in methods.items()]
-    plt.legend(handles=patches, bbox_to_anchor=(1, 0), loc='lower right', borderaxespad=0.,
-               fontsize=7, handlelength=1, handleheight=1, labelspacing=0.5)
+    ax.imshow(image_rgb)
+    ax.axis('off')
+    ax.legend(handles=patches, bbox_to_anchor=(1, 0), loc='lower right', borderaxespad=0.,
+              fontsize=7, handlelength=1, handleheight=1, labelspacing=0.5)
 
-    plt.imshow(image_rgb)
-    plt.axis('off')
-    plt.show()
-
-def draw_result_table(result):
-
-def show_result(results):
+def draw_result_table(results):
     g_time, ed_time, tm_time, nn_time = 0, 0, 0, 0
     g_acc, ed_acc, tm_acc, nn_acc = 0, 0, 0, 0
-    for i, g_result, ed_result, tm_result, nn_result in enumerate(results):
+    total = len(results)
+    for i, result in enumerate(results):
         i = i + 1
-        g_time += g_result[0]
+        g_result, ed_result, tm_result, nn_result = result[0], result[1], result[2], result[3]
+
+        g_time += round(g_result[0], 2)
         g_acc += calculate_waldo_accuracy(g_result[1], i)
-        ed_time += ed_result[0]
+        ed_time += round(ed_result[0], 2)
         ed_acc += calculate_waldo_accuracy(ed_result[1], i)
-        tm_time += tm_result[0]
+        tm_time += round(tm_result[0],2)
         tm_acc += calculate_waldo_accuracy(tm_result[1], i)
-        nn_time += nn_result[0]
+        nn_time += round(nn_result[0],2 )
         nn_acc += calculate_waldo_accuracy(nn_result[1], i)
 
-        draw_final_image(g_result[1], i)
-        draw_final_image(ed_result[1], i)
-        draw_final_image(tm_result[1], i)
-        draw_final_image(nn_result[1], i)
+    data = {
+        "Methods": ["Gradients", "Edge Detection", "Template Matching", "Neural Network"],
+        "Accuracy": [g_acc/total, ed_acc/total, tm_acc/total, nn_acc/total],
+        "Time (without multithreading)": [g_time/total, ed_time/total, '-', nn_time/total],
+        "Time (with multithreading)": ['-', '-', tm_time/total, '-']
+    }
+
+    df = pd.DataFrame(data)
+    # Set the 'Methods' column as index if needed
+    df.set_index('Methods', inplace=True)
+    df.style.set_properties(**{'text-align': 'left'})
+    display(df)
+
+
+def show_result(results):
+    num_images = len(results)
+    cols = 2
+    rows = (num_images + 1) // cols
+    fig, axes = plt.subplots(rows, cols, figsize=(10, rows * 5))
+
+    draw_result_table(results)
+    for i, result in enumerate(results):
+        if rows > 1:
+            ax = axes[i // cols, i % cols]
+        else:
+            ax = axes[i % cols]
+        draw_final_image(result, i + 1, ax)
+
+    plt.tight_layout()
+    plt.show()
+
 
 
 
