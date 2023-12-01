@@ -56,3 +56,8 @@ def calculate_waldo_accuracy(waldo, ind):
     else:
         print(f"No real Waldo data found for index {ind}")
         return 0
+
+def draw_final_image(waldos):
+    for w in waldos:
+        if w is not None:
+            None
