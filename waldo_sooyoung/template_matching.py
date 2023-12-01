@@ -20,8 +20,12 @@ def template_matching(test_image_gray, template):
     threshold = 0.9
     loc = np.where(res >= threshold)
 
-    # Return points for this template
-    return [(pt[0], pt[1], w, h) for pt in zip(*loc[::-1])]
+    match_list = []
+    for pt in zip(*loc[::-1]):  # Iterate over found locations
+        match_value = res[pt[1], pt[0]]  # Get the match value
+        match_list.append((pt[0], pt[1], w, h, match_value))  # Append tuple with bb and match value
+
+    return match_list
 
 
 def slice_waldo_images(image_dir, label_dir):
@@ -77,43 +81,50 @@ def find_waldo_with_template_matching_parallel(test_image, template_images):
     test_image_gray = cv2.cvtColor(test_image, cv2.COLOR_BGR2GRAY)
 
     # Use ThreadPoolExecutor to run template matching in parallel
-    points = []
+    best_res = 0
+    best_loc = None
     with ThreadPoolExecutor() as executor:
         futures = [executor.submit(template_matching, test_image_gray, template) for template in template_images]
         for future in futures:
-            points.extend(future.result())
+            if len(future.result()) > 0:
+                point = future.result()[0]
+                loc = point[0:4]
+                res = point[4]
+                if res > best_res:
+                    best_res = res
+                    best_loc = loc
 
-    # Draw rectangles for each found location
-    # for pt in points:
-    #     cv2.rectangle(test_image, (pt[0], pt[1]), (pt[0] + pt[2], pt[1] + pt[3]), (0, 255, 0), 2)
-
-    return test_image, points
+    return best_loc
 
 def run_template_matching(test_image_path, template_paths, ind):
     test_img = cv2.imread(test_image_path)
     template_imgs = []
 
     for tp in template_paths:
-        template_imgs.extend(slice_waldo_images(tp + '/images', tp + '/labels'))
+        template_imgs.extend(slice_waldo_images(tp + '/template_images', tp + '/template_labels'))
 
-    result_img, points = find_waldo_with_template_matching_parallel(test_img, template_imgs)
+    pt = find_waldo_with_template_matching_parallel(test_img, template_imgs)
     # Create a mask with the same size as the image, initially filled with zeros
     mask = np.zeros_like(test_img, dtype=np.uint8)
 
     # Draw a filled rectangle on the mask for each point
-    for pt in points:
+    if pt is not None:
         cv2.rectangle(mask, (pt[0], pt[1]), (pt[0] + pt[2], pt[1] + pt[3]), (255, 255, 255), -1)
 
     # Apply Gaussian blur to the whole image
     blurred_test_img = cv2.GaussianBlur(test_img, (21, 21), 0)
+    blurred_test_img = np.clip(blurred_test_img * 0.5, 0, 255).astype(np.uint8)
 
     # Blend the images
     final_image = np.where(mask == np.array([255, 255, 255]), test_img, blurred_test_img)
 
-    for pt in points:
+    if pt is not None:
         cv2.rectangle(final_image, (pt[0], pt[1]), (pt[0] + pt[2], pt[1] + pt[3]), (0, 255, 0), 2)
 
     cv2.imwrite(f'result/template_matching/template_matching_result_{ind}.jpg', final_image, [cv2.IMWRITE_JPEG_QUALITY, 90])
 
+    if pt is None:
+        return None
 
+    return (pt[0], pt[1], pt[0] + pt[2], pt[1] + pt[3])
 

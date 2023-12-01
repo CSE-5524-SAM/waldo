@@ -5,6 +5,18 @@ import mahotas.demos
 import numpy as np
 
 
+def find_bounding_box(mask):
+    # Find the indices of True values
+    y_indices, x_indices = np.where(mask)
+
+    if not len(x_indices) or not len(y_indices):
+        return None  # No True values in the mask
+
+    # Find min and max of x and y indices
+    min_x, max_x = min(x_indices), max(x_indices)
+    min_y, max_y = min(y_indices), max(y_indices)
+
+    return (min_x, min_y, max_x, max_y)
 def run_edge_detector(image_path, ind):
     # loading the image
     # wally = mahotas.demos.load('wally')
@@ -43,3 +55,5 @@ def run_edge_detector(image_path, ind):
 
     # show the new image
     imsave(f'result/edge_detection/edge_detection_result_{ind}.jpg', wally)
+
+    return find_bounding_box(mask)
